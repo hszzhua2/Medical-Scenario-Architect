@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Scenario Architect</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    cursor: {
+                        crosshair: 'crosshair',
+                        grab: 'grab',
+                        grabbing: 'grabbing',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        /* Custom Scrollbar */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        
+        /* Grid Pattern */
+        .bg-grid {
+            mask-image: linear-gradient(to bottom, transparent, black, transparent);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 overflow-hidden">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+        // --- Icon Bridge ---
+        // Helper to render Lucide icons from the global 'lucide' object
+        const Icon = ({ name, size = 24, className = "", ...props }) => {
+            const iconDef = lucide.icons[name];
+            if (!iconDef) return null;
+
+            // lucide.icons[name] is [tag, attrs, [children]] in some versions, 
+            // or an array of children in others. For the CDN version 'lucide@latest', 
+            // it provides an object structure suitable for creation.
+            // We'll manually construct the SVG here based on the library structure.
+            
+            // Note: lucide.icons keys are PascalCase (e.g., "Activity")
+            
+            return (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`lucide lucide-${name.toLowerCase()} ${className}`}
+                    {...props}
+                >
+                    {iconDef.map(([tag, attrs], index) => {
+                        return React.createElement(tag, { ...attrs, key: index });
+                    })}
+                </svg>
+            );
+        };
+
+        // Create specific components for the imports used in the original code
+        const createIcon = (name) => (props) => <Icon name={name} {...props} />;
+
+        const Plus = createIcon("Plus");
+        const Download = createIcon("Download");
+        const Upload = createIcon("Upload");
+        const Trash2 = createIcon("Trash2");
+        const X = createIcon("X");
+        const Save = createIcon("Save");
+        const ZoomIn = createIcon("ZoomIn");
+        const ZoomOut = createIcon("ZoomOut");
+        const Activity = createIcon("Activity");
+        const Users = createIcon("Users");
+        const Box = createIcon("Box");
+        const Layout = createIcon("Layout");
+        const Globe = createIcon("Globe");
+        const Database = createIcon("Database");
+        const TableIcon = createIcon("Table");
+        const Grid = createIcon("Grid");
+        const Layers = createIcon("Layers");
+        const HardDrive = createIcon("HardDrive");
+        const Copy = createIcon("Copy");
+        const CornerUpLeft = createIcon("CornerUpLeft");
+        const CornerUpRight = createIcon("CornerUpRight");
+        const MousePointer2 = createIcon("MousePointer2");
+        const Maximize = createIcon("Maximize");
+        const Group = createIcon("Group");
+        const Ungroup = createIcon("Ungroup");
+        const FileJson = createIcon("FileJson");
+        const Stethoscope = createIcon("Stethoscope");
+        const ClipboardCheck = createIcon("ClipboardCheck");
+        const Trash = createIcon("Trash");
+        const Zap = createIcon("Zap");
+        const Droplet = createIcon("Droplet");
+        const Wind = createIcon("Wind");
+        const Flag = createIcon("Flag");
+        const Edit3 = createIcon("Edit3");
+        const Settings = createIcon("Settings");
+        const List = createIcon("List");
+        const CheckSquare = createIcon("CheckSquare");
+        const Ruler = createIcon("Ruler");
+        const Sun = createIcon("Sun");
+        const Moon = createIcon("Moon");
+        const Palette = createIcon("Palette");
+        const ChevronRight = createIcon("ChevronRight");
+        const ChevronDown = createIcon("ChevronDown");
+        const MoreVertical = createIcon("MoreVertical");
+        const Search = createIcon("Search");
+
+        // --- Constants & Translations ---
+
+        const TRANSLATIONS = {
+            en: {
+                appName: "Medical Scenario Architect",
+                newProtocol: "New Protocol",
+                group: "Group Zone",
+                ungroup: "Ungroup",
+                import: "Import",
+                saveProject: "Export",
+                fitView: "Fit View",
+                viewCanvas: "Canvas",
+                viewDatabase: "Database",
+                undo: "Undo",
+                redo: "Redo",
+                copy: "Copy",
+                paste: "Paste",
+                delete: "Delete",
+                panelTitleNode: "Node Properties",
+                panelTitleGroup: "Zone Properties",
+                tabMeta: "Meta & Intent",
+                tabActors: "Actors",
+                tabAction: "Action & QC",
+                tabRes: "Resources",
+                tabArch: "Spatial & MEP",
+                dbMaster: "Master Data",
+                dbArch: "Architecture",
+                dbRes: "Resources & Waste",
+                dbAction: "Process & QC",
+                processName: "Process Name",
+                nodeColor: "Card Color",
+                groupName: "Zone Name",
+                groupColor: "Zone Color",
+                processId: "Process ID",
+                domain: "Domain",
+                trigger: "Trigger/Intent",
+                goal: "Goal",
+                subject: "Subject (Primary)",
+                object: "Object (Patient)",
+                staffCount: "Staff Count",
+                sopSteps: "SOP Steps",
+                qcPoints: "QC Checkpoints",
+                resources: "Equipment",
+                consumables: "Consumables",
+                outcomes: "Outcomes",
+                waste: "Medical Waste",
+                area: "Area (m²)",
+                customArch: "Custom Specs",
+                addSpec: "Add Spec",
+                specName: "Param Name",
+                specValue: "Value",
+                hintOps: "Zoom: Scroll | Pan: Space+Drag or Middle Click | Connect: Drag Right Handle"
+            },
+            cn: {
+                appName: "医疗流程架构师",
+                newProtocol: "新建节点",
+                group: "新建分区",
+                ungroup: "取消分区",
+                import: "导入",
+                saveProject: "导出",
+                fitView: "适配视图",
+                viewCanvas: "画布视图",
+                viewDatabase: "数据视图",
+                undo: "撤销",
+                redo: "重做",
+                copy: "复制",
+                paste: "粘贴",
+                delete: "删除",
+                panelTitleNode: "节点属性",
+                panelTitleGroup: "区域属性",
+                tabMeta: "基础信息",
+                tabActors: "参与角色",
+                tabAction: "行为质控",
+                tabRes: "资源废物",
+                tabArch: "建筑机电",
+                dbMaster: "总览表",
+                dbArch: "建筑机电表",
+                dbRes: "资源配置表",
+                dbAction: "流程质控表",
+                processName: "流程名称",
+                nodeColor: "卡片颜色",
+                groupName: "区域名称",
+                groupColor: "区域颜色",
+                processId: "流程编号",
+                domain: "所属领域",
+                trigger: "触发条件 (动因)",
+                goal: "流程目标",
+                subject: "主体 (执行者)",
+                object: "客体 (患者/对象)",
+                staffCount: "定员人数",
+                sopSteps: "SOP 步骤",
+                qcPoints: "质控关键点",
+                resources: "设备清单",
+                consumables: "耗材清单",
+                outcomes: "产出物",
+                waste: "医废处理",
+                area: "净面积 (m²)",
+                customArch: "自定义参数",
+                addSpec: "添加参数",
+                specName: "参数名",
+                specValue: "参数值",
+                hintOps: "缩放: 滚轮 | 平移: 空格+拖拽 或 中键 | 连线: 拖拽节点右侧手柄"
+            }
+        };
+
+        const COLORS = [
+            { hex: "#3b82f6", tailwind: "blue-500", bg: "bg-blue-500", border: "border-blue-500", light: "bg-blue-50" },
+            { hex: "#ef4444", tailwind: "red-500", bg: "bg-red-500", border: "border-red-500", light: "bg-red-50" },
+            { hex: "#10b981", tailwind: "emerald-500", bg: "bg-emerald-500", border: "border-emerald-500", light: "bg-emerald-50" },
+            { hex: "#f59e0b", tailwind: "amber-500", bg: "bg-amber-500", border: "border-amber-500", light: "bg-amber-50" },
+            { hex: "#8b5cf6", tailwind: "violet-500", bg: "bg-violet-500", border: "border-violet-500", light: "bg-violet-50" },
+            { hex: "#ec4899", tailwind: "pink-500", bg: "bg-pink-500", border: "border-pink-500", light: "bg-pink-50" },
+            { hex: "#6366f1", tailwind: "indigo-500", bg: "bg-indigo-500", border: "border-indigo-500", light: "bg-indigo-50" },
+            { hex: "#64748b", tailwind: "slate-500", bg: "bg-slate-500", border: "border-slate-500", light: "bg-slate-50" },
+        ];
+
+        const DEFAULT_NODE_DATA = {
+            processId: "",
+            processName: "New Process", 
+            domain: "General", 
+            color: "#3b82f6", 
+            intent: { trigger: "", goal: "" },
+            actors: { primary: "Nurse", secondary: "Patient", staffCount: 1 },
+            steps: [], 
+            qc: { checkpoints: [] },
+            resources: { equipment: [], consumables: [] },
+            outcomes: [], 
+            waste: { type: "General", handling: "Bin" },
+            spatial: {
+                area: 15, 
+                specs: [
+                    { id: "p1", category: "Power", name: "Socket Type", value: "Universal" },
+                ]
+            },
+            custom: {} 
+        };
+
+        // --- Utils ---
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+        const snapToGrid = (val) => Math.round(val / 10) * 10;
+
+        // --- Main App Component ---
+
+        const App = () => {
+            // App State
+            const [lang, setLang] = useState('en'); 
+            const t = TRANSLATIONS[lang]; 
+            const [viewMode, setViewMode] = useState('canvas'); // 'canvas' | 'database'
+            const [theme, setTheme] = useState('light');
+
+            // Data State
+            const [nodes, setNodes] = useState([]);
+            const [edges, setEdges] = useState([]);
+            const [groups, setGroups] = useState([]); 
+            
+            // Selection & Interaction State
+            const [selectedIds, setSelectedIds] = useState(new Set()); 
+            const [selectedGroupId, setSelectedGroupId] = useState(null); 
+            const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
+            const [history, setHistory] = useState({ past: [], future: [] });
+            const [clipboard, setClipboard] = useState(null);
+
+            // Interaction References
+            const [mode, setMode] = useState('idle'); // idle, panning, dragging_node, dragging_group, connecting, box_selecting
+            const [interactionStart, setInteractionStart] = useState({ x: 0, y: 0 });
+            const [tempConnection, setTempConnection] = useState(null); 
+            const [selectionBox, setSelectionBox] = useState(null); 
+
+            const canvasRef = useRef(null);
+            const containerRef = useRef(null);
+
+            // --- Coordinate Systems ---
+            const screenToWorld = useCallback((sx, sy) => {
+                return {
+                    x: (sx - transform.x) / transform.k,
+                    y: (sy - transform.y) / transform.k
+                };
+            }, [transform]);
+
+            // --- History ---
+            const saveHistory = useCallback(() => {
+                setHistory(prev => {
+                    const newPast = [...prev.past, { 
+                        nodes: JSON.parse(JSON.stringify(nodes)), 
+                        edges: JSON.parse(JSON.stringify(edges)),
+                        groups: JSON.parse(JSON.stringify(groups))
+                    }];
+                    if (newPast.length > 20) newPast.shift();
+                    return { past: newPast, future: [] };
+                });
+            }, [nodes, edges, groups]);
+
+            const undo = useCallback(() => {
+                setHistory(prev => {
+                    if (prev.past.length === 0) return prev;
+                    const newPast = [...prev.past];
+                    const prevState = newPast.pop();
+                    setNodes(prevState.nodes);
+                    setEdges(prevState.edges);
+                    setGroups(prevState.groups);
+                    return { past: newPast, future: [{ nodes, edges, groups }, ...prev.future] };
+                });
+            }, [nodes, edges, groups]);
+
+            const redo = useCallback(() => {
+                setHistory(prev => {
+                    if (prev.future.length === 0) return prev;
+                    const newFuture = [...prev.future];
+                    const nextState = newFuture.shift();
+                    setNodes(nextState.nodes);
+                    setEdges(nextState.edges);
+                    setGroups(nextState.groups);
+                    return { past: [...prev.past, { nodes, edges, groups }], future: newFuture };
+                });
+            }, [nodes, edges, groups]);
+
+            // --- Actions ---
+            const addNode = () => {
+                saveHistory();
+                const rect = containerRef.current.getBoundingClientRect();
+                const center = screenToWorld(rect.width/2, rect.height/2);
+                
+                const newNode = {
+                    id: generateId(), 
+                    x: center.x - 120, 
+                    y: center.y - 75, 
+                    width: 240,
+                    data: JSON.parse(JSON.stringify(DEFAULT_NODE_DATA))
+                };
+                newNode.data.processName = t.newProtocol;
+                setNodes([...nodes, newNode]);
+                setSelectedIds(new Set([newNode.id]));
+                setSelectedGroupId(null);
+            };
+
+            const createGroup = () => {
+                if (selectedIds.size === 0) return;
+                saveHistory();
+                const selectedNodes = nodes.filter(n => selectedIds.has(n.id));
+                
+                let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+                selectedNodes.forEach(n => {
+                    minX = Math.min(minX, n.x); 
+                    minY = Math.min(minY, n.y);
+                    maxX = Math.max(maxX, n.x + n.width); 
+                    maxY = Math.max(maxY, n.y + 160); 
+                });
+                
+                const padding = 50;
+                const group = {
+                    id: generateId(),
+                    title: t.group,
+                    x: minX - padding, 
+                    y: minY - padding - 40,
+                    width: (maxX - minX) + padding * 2, 
+                    height: (maxY - minY) + padding * 2 + 40,
+                    color: "#6366f1", 
+                    memberIds: Array.from(selectedIds)
+                };
+                setGroups([...groups, group]);
+                setSelectedGroupId(group.id);
+                setSelectedIds(new Set());
+            };
+
+            const ungroup = () => {
+                if (!selectedGroupId) return;
+                saveHistory();
+                setGroups(groups.filter(g => g.id !== selectedGroupId));
+                setSelectedGroupId(null);
+            };
+
+            const deleteSelection = () => {
+                saveHistory();
+                if (selectedGroupId) {
+                    setGroups(gs => gs.filter(g => g.id !== selectedGroupId));
+                    setSelectedGroupId(null);
+                } else if (selectedIds.size > 0) {
+                    const toDelete = selectedIds;
+                    setNodes(ns => ns.filter(n => !toDelete.has(n.id)));
+                    setEdges(es => es.filter(e => !toDelete.has(e.source) && !toDelete.has(e.target)));
+                    setGroups(gs => gs.map(g => ({...g, memberIds: g.memberIds.filter(mid => !toDelete.has(mid))})));
+                    setSelectedIds(new Set());
+                }
+            };
+
+            // --- IO ---
+            const exportJSON = () => {
+                const exportData = {
+                    meta: { app: "Medical Scenario Architect", version: "3.0", date: new Date().toISOString() },
+                    nodes, edges, groups
+                };
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Scenario_Arch_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+            };
+
+            const importJSON = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    try {
+                        const data = JSON.parse(evt.target.result);
+                        if (data.nodes && Array.isArray(data.nodes)) {
+                            saveHistory();
+                            setNodes(data.nodes);
+                            setEdges(data.edges || []);
+                            setGroups(data.groups || []);
+                            setTransform({x:0, y:0, k:1}); 
+                        } else if (data.protocols) {
+                            alert("Legacy format detected. Please use the V2 format.");
+                        }
+                    } catch(err) { alert("Import failed: " + err); }
+                };
+                reader.readAsText(file);
+            };
+
+            // --- Copy Paste ---
+            const copySelection = useCallback(() => {
+                if (selectedIds.size === 0) return;
+                const selectedNodes = nodes.filter(n => selectedIds.has(n.id));
+                setClipboard(selectedNodes);
+            }, [nodes, selectedIds]);
+
+            const pasteClipboard = useCallback(() => {
+                if (!clipboard || clipboard.length === 0) return;
+                saveHistory();
+                
+                const offset = 50;
+                const newIdMap = {};
+                const newNodes = clipboard.map(node => {
+                    const newId = generateId();
+                    newIdMap[node.id] = newId;
+                    return {
+                        ...node,
+                        id: newId,
+                        x: node.x + offset,
+                        y: node.y + offset,
+                        data: JSON.parse(JSON.stringify(node.data))
+                    };
+                });
+
+                setNodes(prev => [...prev, ...newNodes]);
+                setSelectedIds(new Set(newNodes.map(n => n.id)));
+            }, [clipboard, saveHistory]);
+
+
+            // --- Event Handlers ---
+            const handleWheel = (e) => {
+                if (viewMode !== 'canvas') return;
+                e.preventDefault();
+                if (e.ctrlKey || e.metaKey) {
+                    const zoomSensitivity = 0.001;
+                    const delta = -e.deltaY * zoomSensitivity;
+                    const newScale = Math.min(Math.max(0.1, transform.k + delta), 4);
+                    
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+                    
+                    const worldMouse = screenToWorld(mouseX, mouseY);
+                    const newX = mouseX - worldMouse.x * newScale;
+                    const newY = mouseY - worldMouse.y * newScale;
+                    
+                    setTransform({ x: newX, y: newY, k: newScale });
+                } else {
+                    setTransform(t => ({ ...t, x: t.x - e.deltaX, y: t.y - e.deltaY }));
+                }
+            };
+
+            const handleMouseDown = (e) => {
+                if (viewMode !== 'canvas') return;
+                
+                if (e.button === 1 || (e.code === 'Space') || e.shiftKey) {
+                    setMode('panning');
+                    setInteractionStart({ x: e.clientX, y: e.clientY });
+                    return;
+                }
+
+                if (e.target === containerRef.current || e.target === canvasRef.current) {
+                    if (!e.ctrlKey) {
+                        setSelectedIds(new Set());
+                        setSelectedGroupId(null);
+                    }
+                    setMode('box_selecting');
+                    setInteractionStart({ x: e.clientX, y: e.clientY });
+                    setSelectionBox({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
+                }
+            };
+
+            const handleMouseMove = (e) => {
+                if (mode === 'idle') return;
+
+                const dx = e.clientX - interactionStart.x;
+                const dy = e.clientY - interactionStart.y;
+                const wDx = dx / transform.k;
+                const wDy = dy / transform.k;
+
+                if (mode === 'panning') {
+                    setTransform(t => ({ ...t, x: t.x + dx, y: t.y + dy }));
+                    setInteractionStart({ x: e.clientX, y: e.clientY });
+                } 
+                else if (mode === 'dragging_node') {
+                    setNodes(ns => ns.map(n => selectedIds.has(n.id) ? { ...n, x: n.x + wDx, y: n.y + wDy } : n));
+                    setInteractionStart({ x: e.clientX, y: e.clientY });
+                } 
+                else if (mode === 'dragging_group') {
+                    const g = groups.find(g => g.id === selectedGroupId);
+                    if (g) {
+                        setGroups(gs => gs.map(gx => gx.id === g.id ? { ...gx, x: gx.x + wDx, y: gx.y + wDy } : gx));
+                        setNodes(ns => ns.map(n => g.memberIds.includes(n.id) ? { ...n, x: n.x + wDx, y: n.y + wDy } : n));
+                    }
+                    setInteractionStart({ x: e.clientX, y: e.clientY });
+                }
+                else if (mode === 'box_selecting') {
+                    setSelectionBox({
+                        x: Math.min(interactionStart.x, e.clientX),
+                        y: Math.min(interactionStart.y, e.clientY),
+                        w: Math.abs(e.clientX - interactionStart.x),
+                        h: Math.abs(e.clientY - interactionStart.y)
+                    });
+                }
+                else if (mode === 'connecting' && tempConnection) {
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+                    setTempConnection(prev => ({ ...prev, currX: wp.x, currY: wp.y }));
+                }
+            };
+
+            const handleMouseUp = (e) => {
+                if (mode === 'box_selecting' && selectionBox) {
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const sl = selectionBox.x - rect.left;
+                    const st = selectionBox.y - rect.top;
+                    const sr = sl + selectionBox.w;
+                    const sb = st + selectionBox.h;
+
+                    const newSel = new Set(e.ctrlKey ? selectedIds : []);
+                    
+                    nodes.forEach(n => {
+                        const sx = n.x * transform.k + transform.x;
+                        const sy = n.y * transform.k + transform.y;
+                        const sw = n.width * transform.k;
+                        const sh = 150 * transform.k; 
+
+                        if (sx < sr && sx + sw > sl && sy < sb && sy + sh > st) {
+                            newSel.add(n.id);
+                        }
+                    });
+                    setSelectedIds(newSel);
+                    setSelectionBox(null);
+                }
+                
+                if (mode === 'connecting') {
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+                    
+                    const target = nodes.find(n => 
+                        wp.x >= n.x && wp.x <= n.x + n.width && 
+                        wp.y >= n.y && wp.y <= n.y + 160
+                    );
+
+                    if (target && target.id !== tempConnection.sourceId) {
+                        const exists = edges.some(edge => edge.source === tempConnection.sourceId && edge.target === target.id);
+                        if (!exists) {
+                            setEdges(es => [...es, { id: generateId(), source: tempConnection.sourceId, target: target.id }]);
+                        }
+                    }
+                    setTempConnection(null);
+                }
+                
+                setMode('idle');
+            };
+
+            const onNodeMouseDown = (e, nodeId) => {
+                e.stopPropagation();
+                const newSel = new Set(e.ctrlKey ? selectedIds : [nodeId]);
+                if (e.ctrlKey && selectedIds.has(nodeId)) newSel.delete(nodeId);
+                
+                setSelectedIds(newSel);
+                setSelectedGroupId(null);
+                setMode('dragging_node');
+                setInteractionStart({ x: e.clientX, y: e.clientY });
+                saveHistory();
+            };
+
+            const onGroupMouseDown = (e, groupId) => {
+                e.stopPropagation();
+                setSelectedGroupId(groupId);
+                setSelectedIds(new Set());
+                setMode('dragging_group');
+                setInteractionStart({ x: e.clientX, y: e.clientY });
+                saveHistory();
+            };
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+                    
+                    const cmd = e.ctrlKey || e.metaKey;
+                    if (cmd && e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+                    if (cmd && e.key === 'y') { e.preventDefault(); redo(); }
+                    if (cmd && e.key === 'c') { e.preventDefault(); copySelection(); }
+                    if (cmd && e.key === 'v') { e.preventDefault(); pasteClipboard(); }
+                    if (cmd && e.key === 'g') { e.preventDefault(); createGroup(); }
+                    if (e.key === 'Delete' || e.key === 'Backspace') deleteSelection();
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [undo, redo, copySelection, pasteClipboard, selectedIds, selectedGroupId, nodes, groups]);
+
+            const activeNode = useMemo(() => selectedIds.size === 1 ? nodes.find(n => n.id === Array.from(selectedIds)[0]) : null, [selectedIds, nodes]);
+            const activeGroup = useMemo(() => selectedGroupId ? groups.find(g => g.id === selectedGroupId) : null, [selectedGroupId, groups]);
+
+            const updateNodeData = (id, newData) => {
+                setNodes(ns => ns.map(n => n.id === id ? { ...n, data: newData } : n));
+            };
+            
+            const updateGroupData = (id, newGroupData) => {
+                setGroups(gs => gs.map(g => g.id === id ? { ...g, ...newGroupData } : g));
+            };
+
+            return (
+                <div className={`flex flex-col h-screen w-full overflow-hidden font-sans select-none transition-colors duration-300 ${theme === 'dark' ? 'dark' : ''}`}>
+                    
+                    {/* Top Bar */}
+                    <div className="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 z-20 shadow-sm transition-colors duration-300">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-500/30">
+                                <Activity size={20} />
+                            </div>
+                            <div className="hidden md:block">
+                                <h1 className="font-bold text-lg leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-indigo-400 dark:to-blue-400">
+                                    {t.appName}
+                                </h1>
+                                <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">v3.0 Pro Canvas</span>
+                            </div>
+                            
+                            <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2 hidden md:block"></div>
+
+                            <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <TabButton icon={<Layout size={16}/>} label={t.viewCanvas} active={viewMode==='canvas'} onClick={()=>setViewMode('canvas')} />
+                                <TabButton icon={<Database size={16}/>} label={t.viewDatabase} active={viewMode==='database'} onClick={()=>setViewMode('database')} />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {/* Toolbar */}
+                            <div className="flex items-center gap-1 pr-4 border-r border-slate-200 dark:border-slate-700 mr-2">
+                                <IconButton icon={<CornerUpLeft size={18}/>} tooltip={t.undo} onClick={undo} />
+                                <IconButton icon={<CornerUpRight size={18}/>} tooltip={t.redo} onClick={redo} />
+                                <div className="w-2"></div>
+                                <IconButton icon={<Group size={18}/>} tooltip={`${t.group} (Ctrl+G)`} onClick={createGroup} disabled={selectedIds.size === 0} />
+                                <IconButton icon={<Ungroup size={18}/>} tooltip={t.ungroup} onClick={ungroup} disabled={!selectedGroupId} />
+                                <IconButton icon={<Trash2 size={18}/>} tooltip={t.delete} onClick={deleteSelection} disabled={selectedIds.size === 0 && !selectedGroupId} className="hover:text-red-500" />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setLang(l => l === 'en' ? 'cn' : 'en')} className="font-bold text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors dark:text-slate-200">
+                                    {lang === 'en' ? 'EN' : '中文'}
+                                </button>
+                                <button onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300">
+                                    {theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}
+                                </button>
+                            </div>
+                            
+                            <div className="flex gap-2 ml-2">
+                                <PrimaryButton icon={<Plus size={16}/>} label={t.newProtocol} onClick={addNode} />
+                                <SecondaryButton icon={<Download size={16}/>} label={t.saveProject} onClick={exportJSON} />
+                                <label className="cursor-pointer flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors dark:text-slate-200">
+                                    <Upload size={16}/> <span>{t.import}</span>
+                                    <input type="file" className="hidden" accept=".json" onChange={importJSON}/>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 relative w-full h-full overflow-hidden flex">
+                        
+                        {/* CANVAS MODE */}
+                        <div 
+                            ref={containerRef}
+                            className={`flex-1 relative overflow-hidden bg-slate-50 dark:bg-slate-900 transition-opacity duration-300 ${viewMode === 'canvas' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none absolute inset-0'}`}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onWheel={handleWheel}
+                            style={{ cursor: mode === 'panning' ? 'grabbing' : mode === 'idle' ? 'default' : 'crosshair' }}
+                        >
+                            {/* Grid Background */}
+                            <div 
+                                className="absolute inset-0 pointer-events-none opacity-20 dark:opacity-10"
+                                style={{
+                                    backgroundImage: `radial-gradient(${theme === 'dark' ? '#94a3b8' : '#64748b'} 1px, transparent 1px)`,
+                                    backgroundSize: `${20 * transform.k}px ${20 * transform.k}px`,
+                                    backgroundPosition: `${transform.x}px ${transform.y}px`
+                                }}
+                            />
+
+                            {/* World Container */}
+                            <div 
+                                ref={canvasRef}
+                                className="absolute top-0 left-0 origin-top-left will-change-transform"
+                                style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})` }}
+                            >
+                                {/* Groups Layer (Bottom) */}
+                                {groups.map(g => (
+                                    <div key={g.id}
+                                        className={`absolute rounded-2xl border-2 transition-all group ${selectedGroupId === g.id ? 'ring-2 ring-indigo-500 shadow-xl' : 'border-indigo-200 dark:border-indigo-900/50 hover:border-indigo-300'}`}
+                                        style={{ left: g.x, top: g.y, width: g.width, height: g.height, backgroundColor: `${g.color}10` }}
+                                        onMouseDown={(e) => onGroupMouseDown(e, g.id)}
+                                    >
+                                        <div className="absolute top-0 left-0 right-0 h-8 bg-white/50 dark:bg-slate-800/50 backdrop-blur rounded-t-xl border-b border-indigo-100 dark:border-indigo-900/30 flex items-center px-3 gap-2">
+                                            <div className="w-2 h-2 rounded-full" style={{backgroundColor: g.color}}></div>
+                                            <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-wider">{g.title}</span>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Edges Layer */}
+                                <svg className="absolute top-0 left-0 overflow-visible pointer-events-none w-0 h-0">
+                                    <defs>
+                                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="18" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+                                            <path d="M0,0 L10,5 L0,10" fill={theme === 'dark' ? '#94a3b8' : '#64748b'} />
+                                        </marker>
+                                    </defs>
+                                    {edges.map(e => {
+                                        const src = nodes.find(n => n.id === e.source);
+                                        const tgt = nodes.find(n => n.id === e.target);
+                                        if (!src || !tgt) return null;
+                                        
+                                        const sx = src.x + src.width;
+                                        const sy = src.y + 70; // rough middle vertical
+                                        const tx = tgt.x;
+                                        const ty = tgt.y + 70;
+                                        
+                                        const dist = Math.abs(tx - sx);
+                                        const cp1x = sx + Math.max(dist * 0.5, 50);
+                                        const cp2x = tx - Math.max(dist * 0.5, 50);
+                                        
+                                        const pathD = `M ${sx} ${sy} C ${cp1x} ${sy}, ${cp2x} ${ty}, ${tx} ${ty}`;
+                                        
+                                        return (
+                                            <path 
+                                                key={e.id} 
+                                                d={pathD} 
+                                                fill="none" 
+                                                stroke={theme === 'dark' ? '#64748b' : '#94a3b8'} 
+                                                strokeWidth="2" 
+                                                markerEnd="url(#arrow)"
+                                            />
+                                        );
+                                    })}
+                                    {/* Temp Connection Line */}
+                                    {tempConnection && (
+                                        <path 
+                                            d={`M ${tempConnection.startX} ${tempConnection.startY} L ${tempConnection.currX} ${tempConnection.currY}`} 
+                                            stroke="#6366f1" 
+                                            strokeWidth="2" 
+                                            strokeDasharray="5,5" 
+                                        />
+                                    )}
+                                </svg>
+
+                                {/* Nodes Layer */}
+                                {nodes.map(node => {
+                                    const isSelected = selectedIds.has(node.id);
+                                    const colorObj = COLORS.find(c => c.hex === node.data.color) || COLORS[0];
+                                    
+                                    return (
+                                        <div 
+                                            key={node.id}
+                                            className={`absolute rounded-xl bg-white dark:bg-slate-800 shadow-sm border transition-shadow duration-200 group flex flex-col ${isSelected ? 'ring-2 ring-indigo-500 shadow-lg z-50' : 'border-slate-200 dark:border-slate-700 hover:shadow-md z-10'}`}
+                                            style={{ left: node.x, top: node.y, width: node.width, height: 'auto', minHeight: '140px' }}
+                                            onMouseDown={(e) => onNodeMouseDown(e, node.id)}
+                                        >
+                                            {/* Header */}
+                                            <div className={`h-2 rounded-t-xl w-full ${colorObj.bg}`}></div>
+                                            
+                                            {/* Content */}
+                                            <div className="p-4 flex flex-col gap-2 flex-1">
+                                                <div className="flex justify-between items-start">
+                                                    <span className="font-bold text-sm text-slate-800 dark:text-slate-100 leading-tight line-clamp-2">
+                                                        {node.data.processName}
+                                                    </span>
+                                                    {node.data.intent.trigger && <Flag size={12} className="text-red-400 shrink-0 mt-1"/>}
+                                                </div>
+                                                
+                                                <div className="mt-2 space-y-1.5">
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-1.5 rounded border border-slate-100 dark:border-slate-700">
+                                                        <Users size={12} className="shrink-0"/> 
+                                                        <span className="truncate">{node.data.actors.primary || "No Actor"}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-1.5 rounded border border-slate-100 dark:border-slate-700">
+                                                        <Layout size={12} className="shrink-0"/> 
+                                                        <span className="truncate">{node.data.spatial.area} m²</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Port (Right - Output) */}
+                                            <div 
+                                                className="absolute -right-3 top-1/2 -mt-2 w-6 h-6 rounded-full bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-500 hover:border-indigo-500 hover:bg-indigo-50 flex items-center justify-center cursor-crosshair shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                                                onMouseDown={(e) => {
+                                                    e.stopPropagation();
+                                                    setMode('connecting');
+                                                    setTempConnection({ sourceId: node.id, startX: node.x + node.width, startY: node.y + 70, currX: node.x + node.width, currY: node.y + 70 });
+                                                }}
+                                            >
+                                                <ChevronRight size={14} className="text-slate-400 hover:text-indigo-500"/>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Selection Box Overlay */}
+                            {selectionBox && (
+                                <div 
+                                    className="absolute border border-indigo-500 bg-indigo-500/10 pointer-events-none"
+                                    style={{
+                                        left: selectionBox.x - containerRef.current?.getBoundingClientRect().left,
+                                        top: selectionBox.y - containerRef.current?.getBoundingClientRect().top,
+                                        width: selectionBox.w,
+                                        height: selectionBox.h
+                                    }}
+                                />
+                            )}
+                            
+                            {/* Hint Footer */}
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 shadow-lg text-[10px] font-medium text-slate-500 dark:text-slate-400 pointer-events-none">
+                                {t.hintOps}
+                            </div>
+                        </div>
+
+                        {/* PROPERTY SIDEBAR (Right) */}
+                        <div className={`w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 flex flex-col transition-all duration-300 transform ${ (activeNode || activeGroup) && viewMode === 'canvas' ? 'translate-x-0' : 'translate-x-full absolute right-0 h-full' } z-20 shadow-2xl`}>
+                            {activeNode ? (
+                                <NodeProperties node={activeNode} updateNode={updateNodeData} t={t} onClose={()=>setSelectedIds(new Set())} />
+                            ) : activeGroup ? (
+                                <GroupProperties group={activeGroup} updateGroup={updateGroupData} t={t} onClose={()=>setSelectedGroupId(null)} />
+                            ) : null}
+                        </div>
+
+                        {/* DATABASE MODE */}
+                        {viewMode === 'database' && (
+                            <div className="absolute inset-0 bg-white dark:bg-slate-900 z-30 flex">
+                                <DatabaseView nodes={nodes} groups={groups} updateNode={updateNodeData} t={t} deleteNode={(id) => {
+                                    saveHistory();
+                                    setNodes(ns => ns.filter(n => n.id !== id));
+                                }}/>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Sub-Components ---
+
+        const TabButton = ({ icon, label, active, onClick }) => (
+            <button 
+                onClick={onClick}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${active ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+            >
+                {icon} {label}
+            </button>
+        );
+
+        const IconButton = ({ icon, tooltip, onClick, disabled, className = "" }) => (
+            <button 
+                onClick={onClick}
+                disabled={disabled}
+                title={tooltip}
+                className={`p-2 rounded-lg transition-all ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 active:scale-95'} ${className}`}
+            >
+                {icon}
+            </button>
+        );
+
+        const PrimaryButton = ({ icon, label, onClick }) => (
+            <button onClick={onClick} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-sm shadow-indigo-200 dark:shadow-none transition-transform active:scale-95">
+                {icon} {label}
+            </button>
+        );
+
+        const SecondaryButton = ({ icon, label, onClick }) => (
+            <button onClick={onClick} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-sm shadow-emerald-200 dark:shadow-none transition-transform active:scale-95">
+                {icon} {label}
+            </button>
+        );
+
+        // --- Property Editors ---
+
+        const GroupProperties = ({ group, updateGroup, t, onClose }) => (
+            <div className="flex flex-col h-full">
+                <div className="h-14 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 bg-slate-50 dark:bg-slate-800">
+                    <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><Group size={18}/> {t.panelTitleGroup}</span>
+                    <button onClick={onClose}><X size={18} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"/></button>
+                </div>
+                <div className="p-4 space-y-6 overflow-y-auto flex-1">
+                    <Field label={t.groupName} value={group.title} onChange={v => updateGroup(group.id, {title: v})} />
+                    
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">{t.groupColor}</label>
+                        <div className="flex flex-wrap gap-2">
+                            {COLORS.map(c => (
+                                <button 
+                                    key={c.hex} 
+                                    className={`w-8 h-8 rounded-full border-2 transition-transform ${group.color === c.hex ? 'border-slate-800 dark:border-white scale-110' : 'border-transparent hover:scale-110'}`}
+                                    style={{ backgroundColor: c.hex }}
+                                    onClick={() => updateGroup(group.id, { color: c.hex })}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const NodeProperties = ({ node, updateNode, t, onClose }) => {
+            const [tab, setTab] = useState('meta');
+            const d = node.data;
+            
+            const setD = (path, val) => {
+                const newData = JSON.parse(JSON.stringify(d));
+                const parts = path.split('.');
+                let cur = newData;
+                for(let i=0; i<parts.length-1; i++) cur = cur[parts[i]];
+                cur[parts[parts.length-1]] = val;
+                updateNode(node.id, newData);
+            };
+
+            return (
+                <div className="flex flex-col h-full">
+                    <div className="h-14 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 bg-slate-50 dark:bg-slate-800 shrink-0">
+                        <div className="flex-1 mr-2 overflow-hidden">
+                            <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">{t.panelTitleNode}</div>
+                            <input 
+                                className="bg-transparent font-bold text-slate-800 dark:text-white text-sm w-full outline-none truncate" 
+                                value={d.processName} 
+                                onChange={e => setD('processName', e.target.value)}
+                            />
+                        </div>
+                        <button onClick={onClose}><X size={18} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"/></button>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar bg-white dark:bg-slate-900 shrink-0">
+                        {['meta','actors','action','res','arch'].map(k => (
+                            <button 
+                                key={k} 
+                                onClick={() => setTab(k)}
+                                className={`px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap border-b-2 transition-colors ${tab === k ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            >
+                                {t[`tab${k.charAt(0).toUpperCase()+k.slice(1)}`]}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="p-4 overflow-y-auto flex-1 space-y-6">
+                        {tab === 'meta' && (
+                            <div className="space-y-4 fade-in">
+                                <Field label={t.processId} value={d.processId} onChange={v => setD('processId', v)} />
+                                <Field label={t.domain} value={d.domain} onChange={v => setD('domain', v)} />
+                                
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">{t.nodeColor}</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {COLORS.map(c => (
+                                            <button 
+                                                key={c.hex} 
+                                                className={`w-6 h-6 rounded-full border-2 transition-transform ${d.color === c.hex ? 'border-slate-800 dark:border-white scale-110' : 'border-transparent hover:scale-110'}`}
+                                                style={{ backgroundColor: c.hex }}
+                                                onClick={() => setD('color', c.hex)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/50 space-y-3">
+                                    <TextArea label={t.trigger} value={d.intent.trigger} onChange={v => setD('intent.trigger', v)} rows={2} />
+                                    <TextArea label={t.goal} value={d.intent.goal} onChange={v => setD('intent.goal', v)} rows={2} />
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === 'actors' && (
+                            <div className="space-y-4 fade-in">
+                                <Field label={t.subject} icon={<Stethoscope size={14}/>} value={d.actors.primary} onChange={v => setD('actors.primary', v)} />
+                                <Field label={t.object} icon={<Users size={14}/>} value={d.actors.secondary} onChange={v => setD('actors.secondary', v)} />
+                                <Field label={t.staffCount} type="number" value={d.actors.staffCount} onChange={v => setD('actors.staffCount', parseInt(v) || 0)} />
+                            </div>
+                        )}
+
+                        {tab === 'action' && (
+                            <div className="space-y-6 fade-in">
+                                <ListEditor 
+                                    title={t.sopSteps} 
+                                    items={d.steps || []} 
+                                    onChange={items => setD('steps', items)} 
+                                    placeholder="Describe step..."
+                                    icon={<List size={14}/>}
+                                />
+                                <div className="border-t border-slate-100 dark:border-slate-700 my-4"></div>
+                                <ListEditor 
+                                    title={t.qcPoints} 
+                                    items={d.qc.checkpoints || []} 
+                                    onChange={items => setD('qc.checkpoints', items)} 
+                                    placeholder="Add QC check..."
+                                    icon={<CheckSquare size={14}/>}
+                                    color="red"
+                                />
+                            </div>
+                        )}
+
+                        {tab === 'res' && (
+                            <div className="space-y-6 fade-in">
+                                <TagInput title={t.resources} items={d.resources.equipment} onChange={v => setD('resources.equipment', v)} color="indigo"/>
+                                <TagInput title={t.consumables} items={d.resources.consumables} onChange={v => setD('resources.consumables', v)} color="orange"/>
+                                <TagInput title={t.outcomes} items={d.outcomes} onChange={v => setD('outcomes', v)} color="emerald"/>
+                                
+                                <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30 space-y-3">
+                                    <div className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-2"><Trash size={14}/> {t.waste}</div>
+                                    <Field label="Type" value={d.waste.type} onChange={v => setD('waste.type', v)} small/>
+                                    <Field label="Handling" value={d.waste.handling} onChange={v => setD('waste.handling', v)} small/>
+                                </div>
+                            </div>
+                        )}
+
+                        {tab === 'arch' && (
+                            <div className="space-y-4 fade-in">
+                                <Field label={t.area} type="number" value={d.spatial.area} onChange={v => setD('spatial.area', parseFloat(v) || 0)} icon={<Ruler size={14}/>} />
+                                
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">{t.customArch}</label>
+                                        <button 
+                                            onClick={() => setD('spatial.specs', [...(d.spatial.specs || []), { id: Date.now(), name: "Param", value: "-" }])}
+                                            className="text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300 font-bold"
+                                        >
+                                            {t.addSpec}
+                                        </button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {(d.spatial.specs || []).map((spec, idx) => (
+                                            <div key={idx} className="flex gap-2 items-start bg-slate-50 dark:bg-slate-800/50 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                                <div className="flex-1 space-y-1">
+                                                    <input className="w-full bg-transparent text-xs font-bold text-slate-600 dark:text-slate-300 outline-none placeholder-slate-400" placeholder={t.specName} value={spec.name} onChange={e => {
+                                                        const ns = [...d.spatial.specs]; ns[idx].name = e.target.value; setD('spatial.specs', ns);
+                                                    }}/>
+                                                    <input className="w-full bg-white dark:bg-slate-900 text-xs border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 outline-none text-slate-700 dark:text-slate-200" placeholder={t.specValue} value={spec.value} onChange={e => {
+                                                        const ns = [...d.spatial.specs]; ns[idx].value = e.target.value; setD('spatial.specs', ns);
+                                                    }}/>
+                                                </div>
+                                                <button onClick={() => {
+                                                    const ns = [...d.spatial.specs]; ns.splice(idx, 1); setD('spatial.specs', ns);
+                                                }} className="text-slate-300 hover:text-red-500"><X size={14}/></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const DatabaseView = ({ nodes, groups, updateNode, t, deleteNode }) => {
+            const [subTab, setSubTab] = useState('master');
+            
+            const allSpecNames = Array.from(new Set(nodes.flatMap(n => (n.data.spatial.specs || []).map(s => s.name))));
+            const getGroup = (id) => groups.find(g => g.memberIds.includes(id))?.title || "-";
+
+            const updateField = (id, path, val) => {
+                const node = nodes.find(n => n.id === id);
+                if(!node) return;
+                const newData = JSON.parse(JSON.stringify(node.data));
+                const parts = path.split('.');
+                let cur = newData;
+                for(let i=0; i<parts.length-1; i++) if(!cur[parts[i]]) cur[parts[i]]={}; cur = cur[parts[i]];
+                cur[parts[parts.length-1]] = val;
+                updateNode(id, newData);
+            };
+
+            const COLUMNS = {
+                master: [
+                    { key: 'processId', label: t.processId, w: 'w-24' },
+                    { key: 'intent.trigger', label: t.trigger, w: 'w-48' },
+                    { key: 'intent.goal', label: t.goal, w: 'w-48' },
+                    { key: 'actors.primary', label: t.subject, w: 'w-32' },
+                ],
+                arch: [
+                    { key: 'spatial.area', label: t.area, w: 'w-24', type: 'number', color: 'indigo' },
+                    ...allSpecNames.map(name => ({ key: `SPEC:${name}`, label: name, w: 'w-32', isSpec: true }))
+                ],
+                res: [
+                    { key: 'resources.equipment', label: t.resources, w: 'w-48', isTags: true },
+                    { key: 'resources.consumables', label: t.consumables, w: 'w-48', isTags: true },
+                    { key: 'waste.type', label: t.waste, w: 'w-32' }
+                ],
+                action: [
+                        { key: 'steps', label: t.sopSteps, w: 'w-16', isCount: true },
+                        { key: 'qc.checkpoints', label: t.qcPoints, w: 'w-16', isCount: true }
+                ]
+            };
+
+            const currentCols = COLUMNS[subTab] || [];
+
+            const getVal = (node, col) => {
+                if(col.isSpec) return (node.data.spatial.specs?.find(s => s.name === col.label)?.value) || "";
+                if(col.isTags) return ""; 
+                if(col.isCount) return "";
+                const parts = col.key.split('.');
+                let v = node.data;
+                for(let p of parts) v = v?.[p];
+                return v;
+            };
+
+            return (
+                <div className="flex w-full h-full bg-slate-50 dark:bg-slate-900">
+                    <div className="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 py-6 flex flex-col">
+                        <div className="px-6 mb-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t.viewDatabase}</div>
+                        {[
+                            { id: 'master', icon: <TableIcon size={16}/>, label: t.dbMaster },
+                            { id: 'arch', icon: <Ruler size={16}/>, label: t.dbArch },
+                            { id: 'res', icon: <HardDrive size={16}/>, label: t.dbRes },
+                            { id: 'action', icon: <List size={16}/>, label: t.dbAction },
+                        ].map(tab => (
+                            <button 
+                                key={tab.id} 
+                                onClick={() => setSubTab(tab.id)}
+                                className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors border-l-4 ${subTab === tab.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300' : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                            >
+                                {tab.icon} {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <div className="h-16 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-8 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                {subTab === 'master' ? t.dbMaster : subTab === 'arch' ? t.dbArch : subTab === 'res' ? t.dbRes : t.dbAction}
+                            </h2>
+                            <div className="relative">
+                                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                                <input className="pl-9 pr-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700 text-sm border-none outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200" placeholder="Filter rows..."/>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-auto bg-white dark:bg-slate-900">
+                            <table className="w-full text-left border-collapse min-w-[800px]">
+                                <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-10 shadow-sm">
+                                    <tr>
+                                        <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-700 w-16">#</th>
+                                        <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-700 min-w-[200px]">{t.processName}</th>
+                                        <th className="py-3 px-6 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-700 w-40">{t.groupName}</th>
+                                        {currentCols.map(col => (
+                                            <th key={col.key} className={`py-3 px-6 text-xs font-bold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-700 ${col.w} ${col.type==='number'?'text-right':''}`}>
+                                                {col.label}
+                                            </th>
+                                        ))}
+                                        <th className="py-3 px-6 w-16 border-b border-slate-200 dark:border-slate-700"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                    {nodes.map((node, i) => (
+                                        <tr key={node.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
+                                            <td className="py-3 px-6 text-xs font-mono text-slate-400">{i+1}</td>
+                                            <td className="py-3 px-6">
+                                                <input 
+                                                    className="w-full bg-transparent border-none outline-none text-sm font-medium text-slate-800 dark:text-slate-200 focus:text-indigo-600" 
+                                                    value={node.data.processName}
+                                                    onChange={e => updateField(node.id, 'processName', e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="py-3 px-6 text-sm text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-800/30">{getGroup(node.id)}</td>
+                                            
+                                            {currentCols.map(col => (
+                                                <td key={col.key} className="py-3 px-6">
+                                                    {col.isSpec ? (
+                                                        <input className="w-full bg-transparent border-none outline-none text-sm text-slate-600 dark:text-slate-300 focus:bg-indigo-50 dark:focus:bg-indigo-900/30 rounded px-1"
+                                                            value={getVal(node, col)}
+                                                            placeholder="-"
+                                                            onChange={e => {
+                                                                const specs = [...(node.data.spatial.specs||[])];
+                                                                const exist = specs.find(s => s.name === col.label);
+                                                                if(exist) exist.value = e.target.value;
+                                                                else specs.push({id: Date.now(), name: col.label, value: e.target.value});
+                                                                updateField(node.id, 'spatial.specs', specs);
+                                                            }}
+                                                        />
+                                                    ) : col.isTags ? (
+                                                        <span className="text-xs text-slate-400 italic">{node.data.resources[col.key.split('.')[1]]?.length || 0} items</span>
+                                                    ) : col.isCount ? (
+                                                        <span className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                                                            {col.key==='steps'?node.data.steps.length : node.data.qc.checkpoints.length}
+                                                        </span>
+                                                    ) : (
+                                                        <input className={`w-full bg-transparent border-none outline-none text-sm text-slate-600 dark:text-slate-300 focus:bg-indigo-50 dark:focus:bg-indigo-900/30 rounded px-1 ${col.type==='number'?'text-right':''}`}
+                                                            value={getVal(node, col)}
+                                                            type={col.type || "text"}
+                                                            onChange={e => updateField(node.id, col.key, col.type==='number'?parseFloat(e.target.value):e.target.value)}
+                                                        />
+                                                    )}
+                                                </td>
+                                            ))}
+                                            <td className="py-3 px-6 text-center">
+                                                <button onClick={() => deleteNode(node.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                                    <Trash2 size={14}/>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Field = ({ label, value, onChange, type="text", small, icon }) => (
+            <div className="w-full">
+                <label className={`block font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1 ${small ? 'text-[10px]' : 'text-xs'}`}>
+                    {icon} {label}
+                </label>
+                <input 
+                    type={type}
+                    className={`w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all text-slate-700 dark:text-slate-200 ${small ? 'py-1.5 text-xs' : 'py-2 text-sm'}`}
+                    value={value === undefined || value === null ? '' : value}
+                    onChange={e => onChange(e.target.value)}
+                />
+            </div>
+        );
+
+        const TextArea = ({ label, value, onChange, rows=3 }) => (
+            <div className="w-full">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{label}</label>
+                <textarea 
+                    rows={rows}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all text-slate-700 dark:text-slate-200 resize-none"
+                    value={value || ''}
+                    onChange={e => onChange(e.target.value)}
+                />
+            </div>
+        );
+
+        const ListEditor = ({ title, items, onChange, placeholder, icon, color='indigo' }) => (
+            <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">{icon} {title}</h4>
+                <div className="space-y-2">
+                    {items.map((item, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                            <span className="text-xs font-mono text-slate-400 pt-2.5 w-4 text-right">{i+1}.</span>
+                            <textarea 
+                                rows={1}
+                                className={`flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${color}-500 outline-none resize-none overflow-hidden dark:text-slate-200`}
+                                value={item}
+                                onChange={e => {
+                                    const newItems = [...items];
+                                    newItems[i] = e.target.value;
+                                    onChange(newItems);
+                                }}
+                            />
+                            <button onClick={() => {
+                                const newItems = [...items];
+                                newItems.splice(i, 1);
+                                onChange(newItems);
+                            }} className="pt-2 text-slate-300 hover:text-red-500"><X size={14}/></button>
+                        </div>
+                    ))}
+                </div>
+                <button 
+                    onClick={() => onChange([...items, ""])}
+                    className={`w-full py-2 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-400 hover:border-${color}-400 hover:text-${color}-500 transition-colors flex items-center justify-center gap-1`}
+                >
+                    <Plus size={14}/> Add Item
+                </button>
+            </div>
+        );
+
+        const TagInput = ({ title, items, onChange, color='indigo' }) => {
+            const [txt, setTxt] = useState("");
+            const add = () => { if(txt.trim()){ onChange([...items, txt.trim()]); setTxt(""); } };
+            
+            return (
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{title}</label>
+                    <div className="flex flex-wrap gap-2">
+                        {items.map((it, i) => (
+                            <span key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-${color}-50 dark:bg-${color}-900/30 text-${color}-700 dark:text-${color}-300 border border-${color}-100 dark:border-${color}-800`}>
+                                {it}
+                                <button onClick={()=>{const n=[...items]; n.splice(i,1); onChange(n)}} className={`hover:text-${color}-900`}><X size={12}/></button>
+                            </span>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <input 
+                            className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200" 
+                            value={txt} 
+                            onChange={e => setTxt(e.target.value)} 
+                            onKeyDown={e => e.key==='Enter' && add()}
+                            placeholder="Type and press Enter..."
+                        />
+                        <button onClick={add} className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-500 hover:text-indigo-600"><Plus size={16}/></button>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
